@@ -812,25 +812,10 @@ end
 			buildoptions {
 				"-Wno-cast-align",
 				"-Wno-tautological-compare",
-				"-Wno-dynamic-class-memaccess",
-				"-Wno-self-assign-field",
 			}
 			if (version >= 30200) then
 				buildoptions {
 					"-Wno-unused-value",
-				}
-			end
-			if (version >= 30400) then
-				buildoptions {
-					"-Wno-inline-new-delete",
-					"-Wno-constant-logical-operand",
-				}
-			end
-			if (version >= 30500) then
-				buildoptions {
-					"-Wno-absolute-value",
-					"-Wno-unknown-warning-option",
-					"-Wno-extern-c-compat",
 				}
 			end
 		else
