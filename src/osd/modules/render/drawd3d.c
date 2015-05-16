@@ -1323,7 +1323,7 @@ void renderer::pick_best_mode()
 			continue;
 
 		// compute initial score based on difference between target and current
-		float size_score = 1.0f / (1.0f + fabs((float)(mode.Width - target_width)) + fabs((float)(mode.Height - target_height)));
+		float size_score = 1.0f / (1 + abs(mode.Width - target_width) + abs(mode.Height - target_height));
 
 		// if the mode is too small, give a big penalty
 		if (mode.Width < minwidth || mode.Height < minheight)
@@ -1338,7 +1338,7 @@ void renderer::pick_best_mode()
 			size_score = 2.0f;
 
 		// compute refresh score
-		float refresh_score = 1.0f / (1.0f + fabs((double)mode.RefreshRate - target_refresh));
+		float refresh_score = 1.0f / (1 + abs(mode.RefreshRate - target_refresh));
 
 		// if refresh is smaller than we'd like, it only scores up to 0.1
 		if ((double)mode.RefreshRate < target_refresh)

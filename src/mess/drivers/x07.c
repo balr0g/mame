@@ -265,7 +265,7 @@ void x07_state::t6834_cmd (UINT8 cmd)
 			{
 				UINT32 d1 = (x * x + y * y) - p3 * p3;
 				UINT32 d2 = (x * x + (y - 1) * (y - 1)) - p3 * p3;
-				if(abs((double)d1) > abs((double)d2))
+				if(d1>d2)
 					y--;
 				draw_point(x + p1, y + p2, 0x01);
 				draw_point(x + p1, -y + p2, 0x01);
