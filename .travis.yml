@@ -14,7 +14,6 @@ sudo: false
 addons:
   apt:
     sources:
-      - debian-sid
       - llvm-toolchain-precise-3.7
       - ubuntu-toolchain-r-test
     packages:
