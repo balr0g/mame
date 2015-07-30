@@ -17,11 +17,6 @@ addons:
       - llvm-toolchain-precise-3.7
       - ubuntu-toolchain-r-test
     packages:
-      - gcc-5
-      - g++-5
-      - clang-3.7
-      - libqt5qml5
       - libsdl2-dev
-      - libfontconfig1-dev
 notifications:
   email: false
