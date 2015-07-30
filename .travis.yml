@@ -24,10 +24,5 @@ addons:
       - libqt5qml5
       - libsdl2-dev
       - libfontconfig1-dev
-before_install:
-  - sudo add-apt-repository ppa:zoogie/sdl2-snapshots -y
-  - sudo apt-add-repository ppa:beineri/opt-qt55 -y
-  - sudo apt-get update -qq
-  - sudo apt-get install -y libsdl2-dev libsdl2-ttf-dev libasound2-dev qt55base qt55tools
 notifications:
   email: false
