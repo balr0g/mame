@@ -6,12 +6,24 @@ env:
   - SUBTARGET=arcade MAME=mamearcade64
   - SUBTARGET=mess   MAME=mess64
 script:
-  - source /opt/qt55/bin/qt55-env.sh
   - if [ $CC == 'clang' ];
     then make -j2 linux_x64_clang OPT_FLAGS="-fPIC" && ./$MAME -validate;
     else make -j2 OPTIMIZE=0 OPT_FLAGS="-fPIC"      && ./$MAME -validate;
     fi
-sudo: required
+sudo: false
+addons:
+  apt:
+    sources:
+      - debian-sid
+      - llvm-toolchain-precise-3.7
+      - ubuntu-toolchain-r-test
+    packages:
+      - gcc-5
+      - g++-5
+      - clang-3.7
+      - libqt5qml5
+      - libsdl2-dev
+      - libfontconfig1-dev
 before_install:
   - sudo add-apt-repository ppa:zoogie/sdl2-snapshots -y
   - sudo apt-add-repository ppa:beineri/opt-qt55 -y
