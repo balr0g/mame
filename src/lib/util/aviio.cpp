@@ -1545,8 +1545,7 @@ avi_error avi_append_sound_samples(avi_file *file, int channel, const INT16 *sam
 	{
 		INT16 data = *samples++;
 		samples += sampleskip;
-		data = LITTLE_ENDIANIZE_INT16(data);
-		file->soundbuf[sampoffset++ * file->info.audio_channels + channel] = data;
+		file->soundbuf[sampoffset++ * file->info.audio_channels + channel] = LITTLE_ENDIANIZE_INT16(data);
 	}
 	file->soundbuf_chansamples[channel] = sampoffset;
 
