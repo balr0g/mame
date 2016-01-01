@@ -28,11 +28,11 @@ env:
 script:
   - if [ $TRAVIS_OS_NAME == 'linux' ]; then
     if [ $CC == 'clang' ]; then
-    make -j2 OVERRIDE_CXX="ccache clang++-3.6" OVERRIDE_CC="ccache clang-3.6" && ./$MAME -validate;
-    else make -j4 OPTIMIZE=0 OVERRIDE_CC="ccache gcc-5" OVERRIDE_CXX="ccache g++-5" && ./$MAME -validate;
+    make -j2 OVERRIDE_CXX="ccache clang++-3.6" OVERRIDE_CC="ccache clang-3.6" && ./$MAME -validate && ccache -s;
+    else make -j4 OPTIMIZE=0 OVERRIDE_CC="ccache gcc-5" OVERRIDE_CXX="ccache g++-5" && ./$MAME -validate && ccache -s;
     fi
     elif [ $TRAVIS_OS_NAME == 'osx' ]; then
-    unset LDOPTS && make -j2 OPTIMIZE=0 MACOSX_USE_LIBSDL=1 OVERRIDE_CC="ccache clang" OVERRIDE_CXX="ccache clang++" && ./$MAME -validate;
+    unset LDOPTS && make -j2 OPTIMIZE=0 MACOSX_USE_LIBSDL=1 OVERRIDE_CC="ccache clang" OVERRIDE_CXX="ccache clang++" && ./$MAME -validate && ccache -s;
     fi
 sudo: required
 dist: trusty
