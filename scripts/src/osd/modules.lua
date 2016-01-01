@@ -189,7 +189,7 @@ function qtdebuggerbuild()
 				MOC = _OPTIONS["QT_HOME"] .. "/bin/moc"
 			else 
 				QTCHOOSERTST = backtick("which qtchooser 2>/dev/null")
-				if (QTCHOOSERTST='') then
+				if (QTCHOOSERTST=='') then
 					MOCTST = backtick("which moc-qt5 2>/dev/null")
 					if (MOCTST=='') then
 						MOCTST = backtick("which moc 2>/dev/null")
