@@ -8,7 +8,9 @@
 
 ***************************************************************************/
 
-#define NO_MEM_TRACKING //workaround for realloc() used in C++ libraries
+//workaround for realloc() used in C++ libraries
+#define NO_MEM_TRACKING
+#include "corealloc.h"
 
 #include <limits>
 #include "lua.hpp"
