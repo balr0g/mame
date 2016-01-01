@@ -8,6 +8,8 @@
 
 ***************************************************************************/
 
+#define NO_MEM_TRACKING //workaround for realloc() used in C++ libraries
+
 #include <limits>
 #include "lua.hpp"
 #include "luabridge/Source/LuaBridge/LuaBridge.h"
