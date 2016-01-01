@@ -188,9 +188,15 @@ function qtdebuggerbuild()
 				end	
 				MOC = _OPTIONS["QT_HOME"] .. "/bin/moc"
 			else 
-				MOCTST = backtick("which moc-qt5 2>/dev/null")
-				if (MOCTST=='') then
+				QTCHOOSERTST = backtick("which qtchooser 2>/dev/null")
+				if (QTCHOOSERTST='') then
+					MOCTST = backtick("which moc-qt5 2>/dev/null")
+					if (MOCTST=='') then
+						MOCTST = backtick("which moc 2>/dev/null")
+					end
+				else
 					MOCTST = backtick("which moc 2>/dev/null")
+					MOCTST = MOCTST .. " -qt=5"
 				end
 				if (MOCTST=='') then
 					print("Qt's Meta Object Compiler (moc) wasn't found!")
