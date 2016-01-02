@@ -17,6 +17,7 @@ cache:
   directories:
     - $HOME/.ccache-mac
     - $HOME/.ccache-linux
+    - $HOME/.ccache-linux-clang
 matrix:
   exclude:
     - os: osx
@@ -31,9 +32,10 @@ script:
     if [ $TRAVIS_OS_NAME == 'linux' ]; then
     export CCACHE_DIR="$HOME/.ccache-linux";
     if [ $CC == 'clang' ]; then
-    export CCACHE_CPP2=1
+    export CCACHE_DIR="$HOME/.ccache-linux-clang";
+    export CCACHE_CPP2=1;
     make -j2 OVERRIDE_CXX="ccache clang++-3.6" OVERRIDE_CC="ccache clang-3.6" && ./$MAME -validate;
-    else make -j4 OPTIMIZE=0 OVERRIDE_CC="ccache gcc-5" OVERRIDE_CXX="ccache g++-5" && ./$MAME -validate;
+    else export CCACHE_DIR="$HOME/.ccache-linux" && make -j4 OPTIMIZE=0 OVERRIDE_CC="ccache gcc-5" OVERRIDE_CXX="ccache g++-5" && ./$MAME -validate;
     fi
     elif [ $TRAVIS_OS_NAME == 'osx' ]; then
     export CCACHE_DIR="$HOME/.ccache-mac";
