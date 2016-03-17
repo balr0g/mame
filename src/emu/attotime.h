@@ -3,8 +3,9 @@
 /**************************************************************************/
 /**
   * @file attotime.h
-  * Support functions for working with attotime data.
-  * @defgroup ATTOTIME Support functions for working with attotime data
+  * High-precision timing system.
+  * @defgroup ATTOTIME AttoTime
+  * High-precision timing system.
   * @{
   * .
   * @class attotime
