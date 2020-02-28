@@ -1,0 +1,23 @@
+name: CI - Windows MINGW64 latest release
+
+on: [push]
+
+jobs:
+  test_Win_MINGW_64_Latest:
+
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v2
+    - uses: numworks/setup-msys2@v1
+      with:
+          update: true
+    - name: Install Dependencies
+      run: |
+          msys2do pacman -Syu --noconfirm
+          msys2do pacman -S --noconfirm base-devel mingw-w64-x86_64-toolchain
+    - name: Build
+      run: msys2do make TOOLS=1 all -j3
+    - name: Test
+      run: Start-Process  -NoNewWindow -Wait ".\mame64.exe" -ArgumentList "-validate"
+
