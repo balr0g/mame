@@ -17,7 +17,7 @@ jobs:
           msys2do pacman -Syu --noconfirm
           msys2do pacman -S --noconfirm base-devel mingw-w64-x86_64-toolchain
     - name: Build
-      run: msys2do make TOOLS=1 all -j3
+      run: msys2do make TOOLS=1 MINGW64="/mingw64" all -j3
     - name: Test
       run: Start-Process  -NoNewWindow -Wait ".\mame64.exe" -ArgumentList "-validate"
 
