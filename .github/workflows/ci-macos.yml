@@ -9,8 +9,12 @@ jobs:
     
     steps:
     - uses: actions/checkout@v2
+    - name: Install dependencies
+      run: |
+          brew update
+          brew install sdl2
     - name: Build
-      run: make USE_BUNDLED_LIB_SDL2=1 TOOLS=1 -j3 all
+      run: make USE_LIBSDL=1 TOOLS=1 -j3 all
     - name: Test
-      run: ./mame64 -verify
+      run: ./mame64 -validate
 
