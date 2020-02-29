@@ -12,8 +12,7 @@ jobs:
     - name: Install dependencies
       run: |
           brew update
-          brew install sdl2
-          brew link sdl2
+          brew install sdl2 pkg-config
     - name: Build
       run: make USE_LIBSDL=1 TOOLS=1 -j3 all
     - name: Test
