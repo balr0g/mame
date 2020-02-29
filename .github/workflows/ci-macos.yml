@@ -13,6 +13,7 @@ jobs:
       run: |
           brew update
           brew install sdl2
+          brew link sdl2
     - name: Build
       run: make USE_LIBSDL=1 TOOLS=1 -j3 all
     - name: Test
