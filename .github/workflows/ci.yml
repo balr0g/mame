@@ -62,6 +62,8 @@ jobs:
     - uses: numworks/setup-msys2@v1 
       with:
           update: true
+    - name: Add msbuild to PATH
+      uses: microsoft/setup-msbuild@v1.0.0
     - name: Install Dependencies
       run: |
           msys2do pacman -Syu --noconfirm
