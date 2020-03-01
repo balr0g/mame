@@ -1,4 +1,4 @@
-name: CI - Ubuntu latest release
+name: CI
 
 on: [push]
 
