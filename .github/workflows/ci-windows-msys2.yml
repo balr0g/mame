@@ -18,6 +18,8 @@ jobs:
           msys2do pacman -S --noconfirm base-devel mingw-w64-x86_64-toolchain
     - name: Build
       run: msys2do make TARGET=mame TOOLS=1 SEPARATE_BIN=1 PTR64=1 OPTIMIZE=3 SYMBOLS=1 SYMLEVEL=1 REGENIE=1 MINGW64="/mingw64" -j3
+    - name: List
+      run: Get-ChildItem -Path "."
     - name: Test
       run: Start-Process -NoNewWindow -Wait ".\mame64.exe" -ArgumentList "-validate"
     - name: Package
