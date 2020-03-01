@@ -19,9 +19,7 @@ jobs:
     - name: Build
       run: msys2do make TARGET=mame TOOLS=1 SEPARATE_BIN=1 PTR64=1 OPTIMIZE=3 SYMBOLS=1 SYMLEVEL=1 REGENIE=1 MINGW64="/mingw64" -j3
     - name: Test
-      run: |
-          $process = (Start-Process -PassThru -NoNewWindow -Wait ".\mame64.exe" -ArgumentList "-validate")
-          Write-Host "Process finished with return code: " $process.ExitCode
+      run: Start-Process -NoNewWindow -Wait ".\mame64.exe" -ArgumentList "-validate"
     - name: Package
       run: msys2do make -f dist.mak PTR64=1
     - uses: actions/upload-artifact@v1
