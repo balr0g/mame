@@ -14,8 +14,8 @@ jobs:
           sudo apt-get update -y -qq
           sudo apt-get install libsdl2-dev libsdl2-ttf-dev libfontconfig-dev qt5-default
     - name: Build
-      run: make TOOLS=1 -j3
-    - name: Test
+      run: make TARGET=mame TOOLS=1 PTR64=1 OPTIMIZE=3 REGENIE=1 -j3
+    - name: Validate
       run: ./mame64 -validate
 
 
@@ -31,8 +31,8 @@ jobs:
           brew update
           brew install sdl2 pkg-config
     - name: Build
-      run: make USE_LIBSDL=1 TOOLS=1 -j3 all
-    - name: Test
+      run: make TARGET=mame TOOLS=1 PTR64=1 OPTIMIZE=3 REGENIE=1 USE_LIBSDL=1 -j3
+    - name: Validate
       run: ./mame64 -validate
 
 
@@ -51,8 +51,10 @@ jobs:
           msys2do pacman -S --noconfirm base-devel mingw-w64-x86_64-toolchain
     - name: Build
       run: msys2do make TARGET=mame TOOLS=1 SEPARATE_BIN=1 PTR64=1 OPTIMIZE=3 REGENIE=1 MINGW64="/mingw64" -j3
-    - name: Test
-      run: Start-Process -NoNewWindow -Wait ".\mame64.exe" -ArgumentList "-validate"
+    - name: Validate
+      run: |
+          $process = (Start-Process -PassThru -NoNewWindow -Wait ".\build\mingw-gcc\bin\x64\Release\mame64.exe" -ArgumentList "-validate")
+          Write-Host "Process finished with return code: " $process.ExitCode
 
   test_Win_MSVC:
     runs-on: windows-latest
@@ -69,7 +71,7 @@ jobs:
           msys2do pacman -Syu --noconfirm
           msys2do pacman -S --noconfirm base-devel mingw-w64-x86_64-toolchain
     - name: Generate build files
-      run: msys2do make TARGET=mame TOOLS=1 SEPARATE_BIN=1 PTR64=1 OPTIMIZE=3 REGENIE=1 MINGW64="/mingw64" -j3 vs2019
+      run: msys2do make TARGET=mame TOOLS=1 PTR64=1 OPTIMIZE=3 REGENIE=1 MINGW64="/mingw64" -j3 vs2019
     - name: Build
       run: msbuild "build\projects\windows\mame\vs2019\mame.sln" /m:2 /p:ContinueOnError=false /p:StopOnFirstFailure=true /property:Configuration=Release /property:Platform=x64
     - name: Test
@@ -90,10 +92,10 @@ jobs:
           msys2do pacman -S --noconfirm base-devel mingw-w64-x86_64-toolchain
     - name: Build
       run: msys2do make TARGET=mame TOOLS=1 SEPARATE_BIN=1 PTR64=1 OPTIMIZE=3 SYMBOLS=1 SYMLEVEL=1 REGENIE=1 MINGW64="/mingw64" -j3
-    - name: List
-      run: Get-ChildItem -Path "."
-    - name: Test
-      run: Start-Process -NoNewWindow -Wait ".\mame64.exe" -ArgumentList "-validate"
+    - name: Validate
+      run: |
+          $process = (Start-Process -PassThru -NoNewWindow -Wait ".\build\mingw-gcc\bin\x64\Release\mame64.exe" -ArgumentList "-validate")
+          Write-Host "Process finished with return code: " $process.ExitCode
     - name: Package
       run: msys2do make -f dist.mak PTR64=1
     - uses: actions/upload-artifact@v1
