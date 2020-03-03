@@ -49,7 +49,7 @@ jobs:
       run: |
           msys2do pacman -Syu --noconfirm
           msys2do pacman -S --noconfirm --needed base-devel mingw-w64-x86_64-toolchain
-          msys2do pacman -Scc
+          msys2do pacman -Scc --noconfirm
     - name: Build
       run: msys2do make TARGET=mame TOOLS=1 SEPARATE_BIN=1 PTR64=1 OPTIMIZE=3 REGENIE=1 MINGW64="/mingw64" -j3
     - name: Validate
@@ -71,7 +71,7 @@ jobs:
       run: |
           msys2do pacman -Syu --noconfirm
           msys2do pacman -S --noconfirm base-devel mingw-w64-x86_64-toolchain
-          msys2do pacman -Scc
+          msys2do pacman -Scc --noconfirm
     - name: Generate build files
       run: msys2do make TARGET=mame TOOLS=1 PTR64=1 OPTIMIZE=3 REGENIE=1 MINGW64="/mingw64" -j3 vs2019
     - name: Build
@@ -92,7 +92,7 @@ jobs:
       run: |
           msys2do pacman -Syu --noconfirm
           msys2do pacman -S --noconfirm --needed base-devel mingw-w64-x86_64-toolchain
-          msys2do pacman -Scc
+          msys2do pacman -Scc --noconfirm
     - name: Build
       run: msys2do make TARGET=mame TOOLS=1 SEPARATE_BIN=1 PTR64=1 OPTIMIZE=3 SYMBOLS=1 SYMLEVEL=1 REGENIE=1 MINGW64="/mingw64" -j3
     - name: Validate
