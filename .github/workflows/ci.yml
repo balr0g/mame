@@ -99,8 +99,9 @@ jobs:
       run: |
           $process = (Start-Process -PassThru -NoNewWindow -Wait ".\build\mingw-gcc\bin\x64\Release\mame64.exe" -ArgumentList "-validate")
           Write-Host "Process finished with return code: " $process.ExitCode
-    - name: Package
+    - name: Free disk space
       run: Remove-Item -Force -Recurse ".\build\mingw-gcc\obj"
+    - name: Package
       run: msys2do make -f dist.mak PTR64=1
     - uses: actions/upload-artifact@v1
       with:
