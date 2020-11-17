@@ -1426,6 +1426,7 @@ end
 		"__STDC_CONSTANT_MACROS",
 		"BGFX_CONFIG_MAX_FRAME_BUFFERS=128",
 		"IMGUI_DISABLE_OBSOLETE_FUNCTIONS",
+		"BGFX_CONFIG_MULTITHREADED=0",
 	}
 
 	if _OPTIONS["targetos"]=="linux" or _OPTIONS["targetos"]=="netbsd" or _OPTIONS["targetos"]=="openbsd" then
