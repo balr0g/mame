@@ -2,6 +2,7 @@
 // Copyright (C) 2002-2005  3Dlabs Inc. Ltd.
 // Copyright (C) 2012-2016 LunarG, Inc.
 // Copyright (C) 2017 ARM Limited.
+// Modifications Copyright (C) 2020 Advanced Micro Devices, Inc. All rights reserved.
 //
 // All rights reserved.
 //
@@ -621,6 +622,8 @@ enum TOperator {
 
     EOpIsHelperInvocation,
 
+    EOpDebugPrintf,
+
     //
     // Branch
     //
@@ -899,12 +902,50 @@ enum TOperator {
     EOpFindLSB,
     EOpFindMSB,
 
-    EOpTraceNV,
-    EOpReportIntersectionNV,
-    EOpIgnoreIntersectionNV,
-    EOpTerminateRayNV,
-    EOpExecuteCallableNV,
+    EOpCountLeadingZeros,
+    EOpCountTrailingZeros,
+    EOpAbsDifference,
+    EOpAddSaturate,
+    EOpSubSaturate,
+    EOpAverage,
+    EOpAverageRounded,
+    EOpMul32x16,
+
+    EOpTrace,
+    EOpReportIntersection,
+    EOpIgnoreIntersection,
+    EOpTerminateRay,
+    EOpExecuteCallable,
     EOpWritePackedPrimitiveIndices4x8NV,
+
+    //
+    // GL_EXT_ray_query operations
+    //
+
+    EOpRayQueryInitialize,
+    EOpRayQueryTerminate,
+    EOpRayQueryGenerateIntersection,
+    EOpRayQueryConfirmIntersection,
+    EOpRayQueryProceed,
+    EOpRayQueryGetIntersectionType,
+    EOpRayQueryGetRayTMin,
+    EOpRayQueryGetRayFlags,
+    EOpRayQueryGetIntersectionT,
+    EOpRayQueryGetIntersectionInstanceCustomIndex,
+    EOpRayQueryGetIntersectionInstanceId,
+    EOpRayQueryGetIntersectionInstanceShaderBindingTableRecordOffset,
+    EOpRayQueryGetIntersectionGeometryIndex,
+    EOpRayQueryGetIntersectionPrimitiveIndex,
+    EOpRayQueryGetIntersectionBarycentrics,
+    EOpRayQueryGetIntersectionFrontFace,
+    EOpRayQueryGetIntersectionCandidateAABBOpaque,
+    EOpRayQueryGetIntersectionObjectRayDirection,
+    EOpRayQueryGetIntersectionObjectRayOrigin,
+    EOpRayQueryGetWorldRayDirection,
+    EOpRayQueryGetWorldRayOrigin,
+    EOpRayQueryGetIntersectionObjectToWorld,
+    EOpRayQueryGetIntersectionWorldToObject,
+
     //
     // HLSL operations
     //
@@ -1190,6 +1231,7 @@ public:
     TOperator getFlowOp() const { return flowOp; }
     TIntermTyped* getExpression() const { return expression; }
     void setExpression(TIntermTyped* pExpression) { expression = pExpression; }
+    void updatePrecision(TPrecisionQualifier parentPrecision);
 protected:
     TOperator flowOp;
     TIntermTyped* expression;
@@ -1223,7 +1265,7 @@ public:
     // it is essential to use "symbol = sym" to assign to symbol
     TIntermSymbol(int i, const TString& n, const TType& t)
         : TIntermTyped(t), id(i),
-#ifdef ENABLE_HLSL
+#ifndef GLSLANG_WEB
         flattenSubset(-1),
 #endif
         constSubtree(nullptr)
@@ -1238,8 +1280,10 @@ public:
     const TConstUnionArray& getConstArray() const { return constArray; }
     void setConstSubtree(TIntermTyped* subtree) { constSubtree = subtree; }
     TIntermTyped* getConstSubtree() const { return constSubtree; }
-#ifdef ENABLE_HLSL
+#ifndef GLSLANG_WEB
     void setFlattenSubset(int subset) { flattenSubset = subset; }
+    virtual const TString& getAccessName() const;
+
     int getFlattenSubset() const { return flattenSubset; } // -1 means full object
 #endif
 
@@ -1249,7 +1293,7 @@ public:
 
 protected:
     int id;                      // the unique id of the symbol this node represents
-#ifdef ENABLE_HLSL
+#ifndef GLSLANG_WEB
     int flattenSubset;           // how deeply the flattened object rooted at id has been dereferenced
 #endif
     TString name;                // the name of the symbol this node represents
