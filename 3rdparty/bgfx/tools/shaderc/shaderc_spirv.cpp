@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2019 Branimir Karadzic. All rights reserved.
+ * Copyright 2011-2020 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bgfx#license-bsd-2-clause
  */
 
@@ -8,12 +8,16 @@
 BX_PRAGMA_DIAGNOSTIC_PUSH()
 BX_PRAGMA_DIAGNOSTIC_IGNORED_MSVC(4100) // error C4100: 'inclusionDepth' : unreferenced formal parameter
 BX_PRAGMA_DIAGNOSTIC_IGNORED_MSVC(4265) // error C4265: 'spv::spirvbin_t': class has virtual functions, but destructor is not virtual
+BX_PRAGMA_DIAGNOSTIC_IGNORED_CLANG_GCC("-Wattributes") // warning: attribute ignored
+BX_PRAGMA_DIAGNOSTIC_IGNORED_CLANG_GCC("-Wdeprecated-declarations") // warning: ‘MSLVertexAttr’ is deprecated
+BX_PRAGMA_DIAGNOSTIC_IGNORED_CLANG_GCC("-Wtype-limits") // warning: comparison of unsigned expression in ‘< 0’ is always false
 BX_PRAGMA_DIAGNOSTIC_IGNORED_CLANG_GCC("-Wshadow") // warning: declaration of 'userData' shadows a member of 'glslang::TShader::Includer::IncludeResult'
 #define ENABLE_OPT 1
 #include <ShaderLang.h>
 #include <ResourceLimits.h>
 #include <SPIRV/SPVRemapper.h>
 #include <SPIRV/GlslangToSpv.h>
+#include <webgpu/webgpu_cpp.h>
 #define SPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS
 #include <spirv_msl.hpp>
 #include <spirv_reflect.hpp>
@@ -53,7 +57,7 @@ namespace bgfx
 namespace stl = tinystl;
 
 #include "../../src/shader_spirv.h"
-#include "../../3rdparty/khronos/vulkan/vulkan.h"
+#include "../../3rdparty/khronos/vulkan-local/vulkan.h"
 
 namespace bgfx { namespace spirv
 {
@@ -142,15 +146,16 @@ namespace bgfx { namespace spirv
 		8,     // MaxCullDistances
 		8,     // MaxCombinedClipAndCullDistances
 		4,     // MaxSamples
-		0,     // maxMeshOutputVerticesNV;
-		0,     // maxMeshOutputPrimitivesNV;
-		0,     // maxMeshWorkGroupSizeX_NV;
-		0,     // maxMeshWorkGroupSizeY_NV;
-		0,     // maxMeshWorkGroupSizeZ_NV;
-		0,     // maxTaskWorkGroupSizeX_NV;
-		0,     // maxTaskWorkGroupSizeY_NV;
-		0,     // maxTaskWorkGroupSizeZ_NV;
+		0,     // maxMeshOutputVerticesNV
+		0,     // maxMeshOutputPrimitivesNV
+		0,     // maxMeshWorkGroupSizeX_NV
+		0,     // maxMeshWorkGroupSizeY_NV
+		0,     // maxMeshWorkGroupSizeZ_NV
+		0,     // maxTaskWorkGroupSizeX_NV
+		0,     // maxTaskWorkGroupSizeY_NV
+		0,     // maxTaskWorkGroupSizeZ_NV
 		0,     // maxMeshViewCountNV
+		0,     // maxDualSourceDrawBuffersEXT
 
 		{ // limits
 			true, // nonInductiveForLoops
@@ -172,6 +177,42 @@ namespace bgfx { namespace spirv
 		toString(temp, sizeof(temp), _instruction);
 		BX_TRACE("%5d: %s", _offset, temp);
 		return true;
+	}
+
+	wgpu::TextureComponentType SpirvCrossBaseTypeToFormatType(spirv_cross::SPIRType::BaseType spirvBaseType)
+	{
+		switch (spirvBaseType)
+		{
+		case spirv_cross::SPIRType::Float:
+			return wgpu::TextureComponentType::Float;
+		case spirv_cross::SPIRType::Int:
+			return wgpu::TextureComponentType::Sint;
+		case spirv_cross::SPIRType::UInt:
+			return wgpu::TextureComponentType::Uint;
+		default:
+		    return wgpu::TextureComponentType::Float;
+		}
+	}
+
+	wgpu::TextureViewDimension SpirvDimToTextureViewDimension(spv::Dim dim, bool arrayed)
+	{
+		switch (dim)
+		{
+		case spv::Dim::Dim1D:
+			return wgpu::TextureViewDimension::e1D;
+		case spv::Dim::Dim2D:
+			return arrayed
+				? wgpu::TextureViewDimension::e2DArray
+				: wgpu::TextureViewDimension::e2D;
+		case spv::Dim::Dim3D:
+			return wgpu::TextureViewDimension::e3D;
+		case spv::Dim::DimCube:
+			return arrayed
+				? wgpu::TextureViewDimension::CubeArray
+				: wgpu::TextureViewDimension::Cube;
+		default:
+			return wgpu::TextureViewDimension::Undefined;
+		}
 	}
 
 	struct SpvReflection
@@ -567,39 +608,6 @@ namespace bgfx { namespace spirv
 	};
 	BX_STATIC_ASSERT(bgfx::Attrib::Count == BX_COUNTOF(s_attribName) );
 
-	int32_t extractStageNumber(const std::string _strLine)
-	{
-		bx::StringView found = bx::findIdentifierMatch(_strLine.c_str(), "register");
-		const char* ptr = found.getPtr() + found.getLength();
-		const char* start = NULL;
-		const char* end = NULL;
-
-		while (*ptr != ')'
-		   &&   ptr < _strLine.c_str() + _strLine.size() )
-		{
-			if (*ptr >= '0' && *ptr <= '9')
-			{
-				if (start == NULL)
-				{
-					start = ptr;
-				}
-
-				end = ptr;
-			}
-
-			ptr++;
-		}
-
-		BX_CHECK(start != NULL && end != NULL, "cannot find register number");
-
-		bx::StringView numberString(start, end - start + 1);
-		int32_t regNumber = -1;
-		bx::fromString(&regNumber, numberString);
-		BX_CHECK(regNumber >= 0, "register number should be semi-positive integer");
-
-		return regNumber;
-	}
-
 	bgfx::Attrib::Enum toAttribEnum(const bx::StringView& _name)
 	{
 		for (uint8_t ii = 0; ii < Attrib::Count; ++ii)
@@ -633,24 +641,29 @@ namespace bgfx { namespace spirv
 	{
 		uint16_t size = 0;
 
-		uint16_t count = static_cast<uint16_t>(uniforms.size());
+		uint16_t count = static_cast<uint16_t>(uniforms.size() );
 		bx::write(_writer, count);
 
-		uint32_t fragmentBit = isFragmentShader ? BGFX_UNIFORM_FRAGMENTBIT : 0;
+		uint32_t fragmentBit = isFragmentShader ? kUniformFragmentBit : 0;
+
 		for (uint16_t ii = 0; ii < count; ++ii)
 		{
 			const Uniform& un = uniforms[ii];
 
-			if (un.type != UniformType::Sampler)
-				size = bx::max(size, (uint16_t)(un.regIndex + un.regCount*16));
+			if ( (un.type & ~kUniformMask) > UniformType::End)
+			{
+				size = bx::max(size, (uint16_t)(un.regIndex + un.regCount*16) );
+			}
 
 			uint8_t nameSize = (uint8_t)un.name.size();
 			bx::write(_writer, nameSize);
 			bx::write(_writer, un.name.c_str(), nameSize);
-			bx::write(_writer, uint8_t(un.type | fragmentBit));
+			bx::write(_writer, uint8_t(un.type | fragmentBit) );
 			bx::write(_writer, un.num);
 			bx::write(_writer, un.regIndex);
 			bx::write(_writer, un.regCount);
+			bx::write(_writer, un.texComponent);
+			bx::write(_writer, un.texDimension);
 
 			BX_TRACE("%s, %s, %d, %d, %d"
 				, un.name.c_str()
@@ -658,10 +671,69 @@ namespace bgfx { namespace spirv
 				, un.num
 				, un.regIndex
 				, un.regCount
-			);
+				);
 		}
 		return size;
 	}
+
+	static spv_target_env getSpirvTargetVersion(uint32_t version)
+	{
+		switch (version)
+		{
+			case 1010:
+				return SPV_ENV_VULKAN_1_0;
+			case 1311:
+				return SPV_ENV_VULKAN_1_1;
+			case 1411:
+				return SPV_ENV_VULKAN_1_1_SPIRV_1_4;
+			case 1512:
+				return SPV_ENV_VULKAN_1_2;
+			default:
+				BX_ASSERT(0, "Unknown SPIR-V version requested. Returning SPV_ENV_VULKAN_1_0 as default.");
+				return SPV_ENV_VULKAN_1_0;
+		}
+	}
+
+	static glslang::EShTargetClientVersion getGlslangTargetVulkanVersion(uint32_t version)
+	{
+		switch (version)
+		{
+			case 1010:
+				return glslang::EShTargetVulkan_1_0;
+			case 1311:
+			case 1411:
+				return glslang::EShTargetVulkan_1_1;
+			case 1512:
+				return glslang::EShTargetVulkan_1_2;
+			default:
+				BX_ASSERT(0, "Unknown SPIR-V version requested. Returning EShTargetVulkan_1_0 as default.");
+				return glslang::EShTargetVulkan_1_0;
+		}
+	}
+
+	static glslang::EShTargetLanguageVersion getGlslangTargetSpirvVersion(uint32_t version)
+	{
+		switch (version)
+		{
+			case 1010:
+				return glslang::EShTargetSpv_1_0;
+			case 1311:
+				return glslang::EShTargetSpv_1_3;
+			case 1411:
+				return glslang::EShTargetSpv_1_4;
+			case 1512:
+				return glslang::EShTargetSpv_1_5;
+			default:
+				BX_ASSERT(0, "Unknown SPIR-V version requested. Returning EShTargetSpv_1_0 as default.");
+				return glslang::EShTargetSpv_1_0;
+		}
+	}
+
+	/// This is the value used to fill out GLSLANG's SpvVersion object.
+	/// The required value is that which is defined by GL_KHR_vulkan_glsl, which is defined here:
+	/// https://github.com/KhronosGroup/GLSL/blob/master/extensions/khr/GL_KHR_vulkan_glsl.txt
+	/// The value is 100.
+	constexpr int s_GLSL_VULKAN_CLIENT_VERSION = 100;
 
 	static bool compile(const Options& _options, uint32_t _version, const std::string& _code, bx::WriterI* _writer, bool _firstPass)
 	{
@@ -688,6 +760,9 @@ namespace bgfx { namespace spirv
 
 		shader->setEntryPoint("main");
 		shader->setAutoMapBindings(true);
+		shader->setEnvInput(glslang::EShSourceHlsl, stage, glslang::EShClientVulkan, s_GLSL_VULKAN_CLIENT_VERSION);
+		shader->setEnvClient(glslang::EShClientVulkan, getGlslangTargetVulkanVersion(_version));
+		shader->setEnvTarget(glslang::EShTargetSpv, getGlslangTargetSpirvVersion(_version));
 		uint32_t bindingOffset = (stage == EShLanguage::EShLangFragment ? 48 : 0);
 		shader->setShiftBinding(glslang::EResUbo, bindingOffset);
 		shader->setShiftBinding(glslang::EResTexture, bindingOffset + 16);
@@ -763,166 +838,107 @@ namespace bgfx { namespace spirv
 			{
 				program->buildReflection();
 
-				std::map<std::string, uint32_t> stageMap;
 				if (_firstPass)
 				{
 					// first time through, we just find unused uniforms and get rid of them
 					std::string output;
-					bx::Error err;
-					LineReader reader(_code.c_str() );
-					while (err.isOk() )
+
+					struct Uniform
 					{
-						char str[4096];
-						int32_t len = bx::read(&reader, str, BX_COUNTOF(str), &err);
-						if (err.isOk() )
+						std::string name;
+						std::string decl;
+					};
+					std::vector<Uniform> uniforms;
+
+					bx::LineReader reader(_code.c_str() );
+					while (!reader.isDone() )
+					{
+						bx::StringView strLine = reader.next();
+
+						bool moved = false;
+
+						bx::StringView str = strFind(strLine, "uniform ");
+						if (!str.isEmpty() )
 						{
-							std::string strLine(str, len);
+							bool found = false;
+							bool sampler = false;
+							std::string name = "";
 
-							size_t index = strLine.find("uniform ");
-							if (index != std::string::npos)
+							// add to samplers
+
+							for (uint32_t ii = 0; ii < BX_COUNTOF(s_samplerTypes); ++ii)
 							{
-								bool found = false;
-
-								for (uint32_t ii = 0; ii < BX_COUNTOF(s_samplerTypes); ++ii)
+								if (!bx::findIdentifierMatch(strLine, s_samplerTypes[ii]).isEmpty() )
 								{
-									if (!bx::findIdentifierMatch(strLine.c_str(), s_samplerTypes[ii]).isEmpty())
-									{
-										found = true;
-										break;
-									}
-								}
-
-								if (!found)
-								{
-									for (int32_t ii = 0, num = program->getNumLiveUniformVariables(); ii < num; ++ii)
-									{
-										// matching lines like:  uniform u_name;
-										// we want to replace "uniform" with "static" so that it's no longer
-										// included in the uniform blob that the application must upload
-										// we can't just remove them, because unused functions might still reference
-										// them and cause a compile error when they're gone
-										if (!bx::findIdentifierMatch(strLine.c_str(), program->getUniformName(ii)).isEmpty())
-										{
-											found = true;
-											break;
-										}
-									}
-								}
-
-								if (!found)
-								{
-									strLine = strLine.replace(index, 7 /* uniform */, "static");
+									found = true;
+									sampler = true;
+									break;
 								}
 							}
 
-							output += strLine;
+							if (!found)
+							{
+								for (int32_t ii = 0, num = program->getNumLiveUniformVariables(); ii < num; ++ii)
+								{
+									// matching lines like:  uniform u_name;
+									// we want to replace "uniform" with "static" so that it's no longer
+									// included in the uniform blob that the application must upload
+									// we can't just remove them, because unused functions might still reference
+									// them and cause a compile error when they're gone
+									if (!bx::findIdentifierMatch(strLine, program->getUniformName(ii) ).isEmpty() )
+									{
+										found = true;
+										name = program->getUniformName(ii);
+										break;
+									}
+								}
+							}
+
+							if (!found)
+							{
+								output.append(strLine.getPtr(), str.getPtr() );
+								output += "static ";
+								output.append(str.getTerm(), strLine.getTerm() );
+								output += "\n";
+								moved = true;
+							}
+							else if (!sampler)
+							{
+								Uniform uniform;
+								uniform.name = name;
+								uniform.decl = std::string(strLine.getPtr(), strLine.getTerm() );
+								uniforms.push_back(uniform);
+								moved = true;
+							}
+						}
+
+						if (!moved)
+						{
+							output.append(strLine.getPtr(), strLine.getTerm() );
+							output += "\n";
 						}
 					}
+
+					std::string uniformBlock;
+					uniformBlock += "cbuffer UniformBlock\n";
+					uniformBlock += "{\n";
+
+					for (const Uniform& uniform : uniforms)
+					{
+						uniformBlock += uniform.decl.substr(7 /* uniform */);
+						uniformBlock += "\n";
+					}
+
+					uniformBlock += "};\n";
+
+					output = uniformBlock + output;
 
 					// recompile with the unused uniforms converted to statics
 					return compile(_options, _version, output.c_str(), _writer, false);
 				}
 				else
 				{
-					// second time, find sampler state and get its stage index
-					bx::Error err;
-					LineReader reader(_code.c_str());
-					while (err.isOk())
-					{
-						char str[4096];
-						int32_t len = bx::read(&reader, str, BX_COUNTOF(str), &err);
-						if (err.isOk())
-						{
-							std::string strLine(str, len);
-							size_t index = strLine.find("uniform ");
-							if (index != std::string::npos)
-							{
-								if (!bx::findIdentifierMatch(strLine.c_str(), "SamplerState").isEmpty() ||
-									!bx::findIdentifierMatch(strLine.c_str(), "SamplerComparisonState").isEmpty())
-								{
-									int32_t regNumber = extractStageNumber(strLine);
-
-									bx::StringView found = bx::findIdentifierMatch(strLine.c_str(), "SamplerState");
-
-									if (found.isEmpty() )
-									{
-										found = bx::findIdentifierMatch(
-											  strLine.c_str()
-											, "SamplerComparisonState"
-											);
-									}
-
-									const char* ptr = found.getPtr() + found.getLength();
-									const char* start = NULL;
-									const char* end = NULL;
-									while (ptr < strLine.c_str() + strLine.size())
-									{
-										if (*ptr != ' ')
-										{
-											if (start == NULL)
-											{
-												start = ptr;
-											}
-
-											end = ptr;
-										}
-										else if (start != NULL)
-										{
-											break;
-										}
-
-										ptr++;
-									}
-
-									BX_CHECK(start != NULL && end != NULL, "sampler name cannot be found");
-
-									std::string samplerName(start, end - start + 1);
-									stageMap[samplerName] = regNumber;
-								}
-							}
-							else if (!bx::findIdentifierMatch(strLine.c_str(), "StructuredBuffer").isEmpty()
-								 ||  !bx::findIdentifierMatch(strLine.c_str(), "RWStructuredBuffer").isEmpty() )
-							{
-								int32_t regNumber = extractStageNumber(strLine);
-
-								const char* ptr   = strLine.c_str();
-								const char* start = NULL;
-								const char* end   = NULL;
-								while (ptr < strLine.c_str() + strLine.size())
-								{
-									if (*ptr == '>')
-									{
-										start = ptr + 1;
-										while (*start == ' ')
-										{
-											start++;
-										}
-									}
-
-									if (*ptr == ':')
-									{
-										end = ptr - 1;
-										while (*end == ' ')
-										{
-											end--;
-										}
-									}
-
-									if (start != NULL && end != NULL)
-									{
-										break;
-									}
-
-									ptr++;
-								}
-
-								BX_CHECK(start != NULL && end != NULL, "sampler name cannot be found");
-
-								std::string bufferName(start, end - start + 1);
-								stageMap[bufferName] = regNumber;
-							}
-						}
-					}
+					// second time, do nothing (todo remove)
 				}
 
 				UniformArray uniforms;
@@ -940,7 +956,7 @@ namespace bgfx { namespace spirv
 						un.regIndex = uint16_t(offset);
 						un.regCount = un.num;
 
-						switch (program->getUniformType(ii))
+						switch (program->getUniformType(ii) )
 						{
 						case 0x1404: // GL_INT:
 							un.type = UniformType::Sampler;
@@ -984,7 +1000,7 @@ namespace bgfx { namespace spirv
 
 				glslang::GlslangToSpv(*intermediate, spirv, &options);
 
-				spvtools::Optimizer opt(SPV_ENV_VULKAN_1_0);
+				spvtools::Optimizer opt(getSpirvTargetVersion(_version));
 
 				auto print_msg_to_stderr = [](
 					  spv_message_level_t
@@ -1023,6 +1039,11 @@ namespace bgfx { namespace spirv
 					spirv_cross::CompilerReflection refl(spirv);
 					spirv_cross::ShaderResources resourcesrefl = refl.get_shader_resources();
 
+					if (g_verbose)
+					{
+						glslang::SpirvToolsDisassemble(std::cout, spirv, getSpirvTargetVersion(_version) );
+					}
+
 					// Loop through the separate_images, and extract the uniform names:
 					for (auto &resource : resourcesrefl.separate_images)
 					{
@@ -1030,39 +1051,41 @@ namespace bgfx { namespace spirv
 						if (name.size() > 7
 						&&  0 == bx::strCmp(name.c_str() + name.length() - 7, "Texture") )
 						{
-							auto uniform_name = name.substr(0, name.length() - 7);
+							std::string uniform_name = name.substr(0, name.length() - 7);
+							uint32_t binding_index = refl.get_decoration(resource.id, spv::Decoration::DecorationBinding);
 
-							Uniform un;
-							un.name = uniform_name;
-							un.type = UniformType::Sampler;
+							auto imageType = refl.get_type(resource.base_type_id).image;
+							auto componentType = refl.get_type(imageType.type).basetype;
 
-							uint32_t texture_binding_index = refl.get_decoration(resource.id, spv::Decoration::DecorationBinding);
-							uint32_t sampler_binding_index = 0;
-							std::string sampler_name;
-
-							for (auto& sampler_resource : resourcesrefl.separate_samplers)
+							bool isCompareSampler = false;
+							for (auto& sampler : resourcesrefl.separate_samplers)
 							{
-								sampler_name = refl.get_name(sampler_resource.id);
-								if (sampler_name.size() > 7
-								&& !bx::strFind(sampler_name.c_str(), uniform_name.c_str()).isEmpty()
-								&& (0 == bx::strCmp(sampler_name.c_str() + name.length() - 7, "Sampler") ||
-								    0 == bx::strCmp(sampler_name.c_str() + name.length() - 7, "SamplerComparison")
-								   ) )
+								if (binding_index + 16 == refl.get_decoration(sampler.id, spv::Decoration::DecorationBinding) )
 								{
-									sampler_binding_index = refl.get_decoration(sampler_resource.id, spv::Decoration::DecorationBinding);
+									std::string samplerName = refl.get_name(sampler.id);
+									isCompareSampler = refl.variable_is_depth_or_compare(sampler.id) || samplerName.find("Comparison") != std::string::npos;
 									break;
 								}
 							}
 
-							un.num = stageMap[sampler_name];	// want to write stage index
-							un.regIndex = texture_binding_index;	// for sampled image binding index
-							un.regCount = sampler_binding_index;	// for sampler binding index
+							Uniform un;
+							un.name = uniform_name;
+							un.type = UniformType::Enum(UniformType::Sampler
+									| kUniformSamplerBit
+									| (isCompareSampler ? kUniformCompareBit : 0)
+									);
+
+							un.texComponent = uint8_t(SpirvCrossBaseTypeToFormatType(componentType) );
+							un.texDimension = uint8_t(SpirvDimToTextureViewDimension(imageType.dim, imageType.arrayed) );
+
+							un.regIndex = binding_index;
+							un.regCount = 0; // unused
 
 							uniforms.push_back(un);
 						}
 					}
 
-					// Loop through the separate_images, and extract the uniform names:
+					// Loop through the storage_images, and extract the uniform names:
 					for (auto &resource : resourcesrefl.storage_images)
 					{
 						std::string name = refl.get_name(resource.id);
@@ -1070,16 +1093,26 @@ namespace bgfx { namespace spirv
 						if (name.size() > 7
 						&&  0 == bx::strCmp(name.c_str() + name.length() - 7, "Texture") )
 						{
-							auto uniform_name = name.substr(0, name.length() - 7);
+							std::string  uniform_name = name.substr(0, name.length() - 7);
 							uint32_t binding_index = refl.get_decoration(resource.id, spv::Decoration::DecorationBinding);
-							std::string sampler_name = uniform_name + "Sampler";
+
+							auto imageType = refl.get_type(resource.base_type_id).image;
+							auto componentType = refl.get_type(imageType.type).basetype;
+
+							spirv_cross::Bitset flags = refl.get_buffer_block_flags(resource.id);
+							UniformType::Enum type = flags.get(spv::DecorationNonWritable)
+								? UniformType::Enum(kUniformReadOnlyBit | UniformType::End)
+								: UniformType::End;
 
 							Uniform un;
 							un.name = uniform_name;
-							un.type = UniformType::End;
-							un.num = stageMap[sampler_name];	// want to write stage index
-							un.regIndex = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;	// for descriptor type
-							un.regCount = binding_index; // for image binding index
+							un.type = type;
+
+							un.texComponent = uint8_t(SpirvCrossBaseTypeToFormatType(componentType) );
+							un.texDimension = uint8_t(SpirvDimToTextureViewDimension(imageType.dim, imageType.arrayed) );
+
+							un.regIndex = binding_index;
+							un.regCount = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;	// for descriptor type
 
 							uniforms.push_back(un);
 						}
@@ -1092,14 +1125,18 @@ namespace bgfx { namespace spirv
 
 						for (auto& uniform : uniforms)
 						{
-							if (!bx::strFind(uniform.name.c_str(), name.c_str()).isEmpty())
+							if (!bx::strFind(uniform.name.c_str(), name.c_str() ).isEmpty() )
 							{
+								spirv_cross::Bitset flags = refl.get_buffer_block_flags(resource.id);
+								UniformType::Enum type = flags.get(spv::DecorationNonWritable)
+									? UniformType::Enum(kUniformReadOnlyBit | UniformType::End)
+									: UniformType::End;
+
 								uint32_t binding_index = refl.get_decoration(resource.id, spv::Decoration::DecorationBinding);
 								uniform.name = name;
-								uniform.type = UniformType::End;
-								uniform.num = stageMap[name];
-								uniform.regIndex = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-								uniform.regCount = binding_index;
+								uniform.type = type;
+								uniform.regIndex = binding_index;
+								uniform.regCount = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 								break;
 							}
 						}
@@ -1109,12 +1146,7 @@ namespace bgfx { namespace spirv
 
 					if (_version == BX_MAKEFOURCC('M', 'T', 'L', 0) )
 					{
-						if (g_verbose)
-						{
-							glslang::SpirvToolsDisassemble(std::cout, spirv);
-						}
-
-						spirv_cross::CompilerMSL msl(std::move(spirv));
+						spirv_cross::CompilerMSL msl(std::move(spirv) );
 
 						spirv_cross::ShaderResources resources = msl.get_shader_resources();
 
@@ -1145,7 +1177,7 @@ namespace bgfx { namespace spirv
 							if (name.size() > 7
 							&&  0 == bx::strCmp(name.c_str() + name.length() - 7, "Texture") )
 							{
-								msl.set_name(resource.id, name.substr(0, name.length() - 7));
+								msl.set_name(resource.id, name.substr(0, name.length() - 7) );
 							}
 						}
 

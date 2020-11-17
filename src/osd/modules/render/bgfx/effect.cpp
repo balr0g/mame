@@ -46,7 +46,7 @@ void bgfx_effect::submit(int view, uint64_t blend)
 		(uniform_pair.second)->upload();
 	}
 	bgfx::setState(m_state | blend);
-	bgfx::submit(view, m_program_handle);
+	bgfx::submit((bgfx::ViewId)view, m_program_handle);
 }
 
 bgfx_uniform* bgfx_effect::uniform(std::string name)
