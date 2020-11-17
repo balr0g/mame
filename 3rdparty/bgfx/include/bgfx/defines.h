@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2019 Branimir Karadzic. All rights reserved.
+ * Copyright 2011-2020 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bgfx#license-bsd-2-clause
  */
 
@@ -15,7 +15,7 @@
 #ifndef BGFX_DEFINES_H_HEADER_GUARD
 #define BGFX_DEFINES_H_HEADER_GUARD
 
-#define BGFX_API_VERSION UINT32_C(102)
+#define BGFX_API_VERSION UINT32_C(109)
 
 /**
  * Color RGB/alpha/depth write. When it's not specified write will be disabled.
@@ -253,8 +253,23 @@
 	)
 
 
+/**
+ * Rendering state discard. When state is preserved in submit, rendering states can be discarded
+ * on a finer grain.
+ *
+ */
+#define BGFX_DISCARD_NONE                   UINT8_C(0x00) //!< Preserve everything.
+#define BGFX_DISCARD_BINDINGS               UINT8_C(0x01) //!< Discard texture sampler and buffer bindings.
+#define BGFX_DISCARD_INDEX_BUFFER           UINT8_C(0x02) //!< Discard index buffer.
+#define BGFX_DISCARD_INSTANCE_DATA          UINT8_C(0x04) //!< Discard instance data.
+#define BGFX_DISCARD_STATE                  UINT8_C(0x08) //!< Discard state.
+#define BGFX_DISCARD_TRANSFORM              UINT8_C(0x10) //!< Discard transform.
+#define BGFX_DISCARD_VERTEX_STREAMS         UINT8_C(0x20) //!< Discard vertex streams.
+#define BGFX_DISCARD_ALL                    UINT8_C(0xff) //!< Discard all states.
+
 #define BGFX_DEBUG_NONE                     UINT32_C(0x00000000) //!< No debug.
 #define BGFX_DEBUG_WIREFRAME                UINT32_C(0x00000001) //!< Enable wireframe for all primitives.
+
 /// Enable infinitely fast hardware test. No draw calls will be submitted to driver.
 /// It's useful when profiling to quickly assess bottleneck between CPU and GPU.
 #define BGFX_DEBUG_IFH                      UINT32_C(0x00000002)
@@ -429,7 +444,8 @@
 #define BGFX_RESET_MAXANISOTROPY            UINT32_C(0x00000100) //!< Turn on/off max anisotropy.
 #define BGFX_RESET_CAPTURE                  UINT32_C(0x00000200) //!< Begin screen capture.
 #define BGFX_RESET_FLUSH_AFTER_RENDER       UINT32_C(0x00002000) //!< Flush rendering after submitting to GPU.
-/// This flag specifies where flip occurs. Default behavior is that flip occurs
+
+/// This flag specifies where flip occurs. Default behaviour is that flip occurs
 /// before rendering new frame. This flag only has effect when `BGFX_CONFIG_MULTITHREADED=0`.
 #define BGFX_RESET_FLIP_AFTER_RENDER        UINT32_C(0x00004000)
 #define BGFX_RESET_SRGB_BACKBUFFER          UINT32_C(0x00008000) //!< Enable sRGB backbuffer.
@@ -452,7 +468,7 @@
 #define BGFX_CAPS_DRAW_INDIRECT             UINT64_C(0x0000000000000010) //!< Draw indirect is supported.
 #define BGFX_CAPS_FRAGMENT_DEPTH            UINT64_C(0x0000000000000020) //!< Fragment depth is accessible in fragment shader.
 #define BGFX_CAPS_FRAGMENT_ORDERING         UINT64_C(0x0000000000000040) //!< Fragment ordering is available in fragment shader.
-#define BGFX_CAPS_FRAMEBUFFER_RW            UINT64_C(0x0000000000000080) //!< Read/Write frame buffer attachments are supported.
+#define BGFX_CAPS_IMAGE_RW                  UINT64_C(0x0000000000000080) //!< Image Read/Write is supported.
 #define BGFX_CAPS_GRAPHICS_DEBUGGER         UINT64_C(0x0000000000000100) //!< Graphics debugger is present.
 #define BGFX_CAPS_RESERVED                  UINT64_C(0x0000000000000200)
 #define BGFX_CAPS_HDR10                     UINT64_C(0x0000000000000400) //!< HDR10 rendering is supported.
@@ -480,22 +496,23 @@
 	)
 
 
-#define BGFX_CAPS_FORMAT_TEXTURE_NONE       UINT16_C(0x0000) //!< Texture format is not supported.
-#define BGFX_CAPS_FORMAT_TEXTURE_2D         UINT16_C(0x0001) //!< Texture format is supported.
-#define BGFX_CAPS_FORMAT_TEXTURE_2D_SRGB    UINT16_C(0x0002) //!< Texture as sRGB format is supported.
-#define BGFX_CAPS_FORMAT_TEXTURE_2D_EMULATED UINT16_C(0x0004) //!< Texture format is emulated.
-#define BGFX_CAPS_FORMAT_TEXTURE_3D         UINT16_C(0x0008) //!< Texture format is supported.
-#define BGFX_CAPS_FORMAT_TEXTURE_3D_SRGB    UINT16_C(0x0010) //!< Texture as sRGB format is supported.
-#define BGFX_CAPS_FORMAT_TEXTURE_3D_EMULATED UINT16_C(0x0020) //!< Texture format is emulated.
-#define BGFX_CAPS_FORMAT_TEXTURE_CUBE       UINT16_C(0x0040) //!< Texture format is supported.
-#define BGFX_CAPS_FORMAT_TEXTURE_CUBE_SRGB  UINT16_C(0x0080) //!< Texture as sRGB format is supported.
-#define BGFX_CAPS_FORMAT_TEXTURE_CUBE_EMULATED UINT16_C(0x0100) //!< Texture format is emulated.
-#define BGFX_CAPS_FORMAT_TEXTURE_VERTEX     UINT16_C(0x0200) //!< Texture format can be used from vertex shader.
-#define BGFX_CAPS_FORMAT_TEXTURE_IMAGE      UINT16_C(0x0400) //!< Texture format can be used as image from compute shader.
-#define BGFX_CAPS_FORMAT_TEXTURE_FRAMEBUFFER UINT16_C(0x0800) //!< Texture format can be used as frame buffer.
-#define BGFX_CAPS_FORMAT_TEXTURE_FRAMEBUFFER_MSAA UINT16_C(0x1000) //!< Texture format can be used as MSAA frame buffer.
-#define BGFX_CAPS_FORMAT_TEXTURE_MSAA       UINT16_C(0x2000) //!< Texture can be sampled as MSAA.
-#define BGFX_CAPS_FORMAT_TEXTURE_MIP_AUTOGEN UINT16_C(0x4000) //!< Texture format supports auto-generated mips.
+#define BGFX_CAPS_FORMAT_TEXTURE_NONE       UINT32_C(0x00000000) //!< Texture format is not supported.
+#define BGFX_CAPS_FORMAT_TEXTURE_2D         UINT32_C(0x00000001) //!< Texture format is supported.
+#define BGFX_CAPS_FORMAT_TEXTURE_2D_SRGB    UINT32_C(0x00000002) //!< Texture as sRGB format is supported.
+#define BGFX_CAPS_FORMAT_TEXTURE_2D_EMULATED UINT32_C(0x00000004) //!< Texture format is emulated.
+#define BGFX_CAPS_FORMAT_TEXTURE_3D         UINT32_C(0x00000008) //!< Texture format is supported.
+#define BGFX_CAPS_FORMAT_TEXTURE_3D_SRGB    UINT32_C(0x00000010) //!< Texture as sRGB format is supported.
+#define BGFX_CAPS_FORMAT_TEXTURE_3D_EMULATED UINT32_C(0x00000020) //!< Texture format is emulated.
+#define BGFX_CAPS_FORMAT_TEXTURE_CUBE       UINT32_C(0x00000040) //!< Texture format is supported.
+#define BGFX_CAPS_FORMAT_TEXTURE_CUBE_SRGB  UINT32_C(0x00000080) //!< Texture as sRGB format is supported.
+#define BGFX_CAPS_FORMAT_TEXTURE_CUBE_EMULATED UINT32_C(0x00000100) //!< Texture format is emulated.
+#define BGFX_CAPS_FORMAT_TEXTURE_VERTEX     UINT32_C(0x00000200) //!< Texture format can be used from vertex shader.
+#define BGFX_CAPS_FORMAT_TEXTURE_IMAGE_READ UINT32_C(0x00000400) //!< Texture format can be used as image and read from.
+#define BGFX_CAPS_FORMAT_TEXTURE_IMAGE_WRITE UINT32_C(0x00000800) //!< Texture format can be used as image and written to.
+#define BGFX_CAPS_FORMAT_TEXTURE_FRAMEBUFFER UINT32_C(0x00001000) //!< Texture format can be used as frame buffer.
+#define BGFX_CAPS_FORMAT_TEXTURE_FRAMEBUFFER_MSAA UINT32_C(0x00002000) //!< Texture format can be used as MSAA frame buffer.
+#define BGFX_CAPS_FORMAT_TEXTURE_MSAA       UINT32_C(0x00004000) //!< Texture can be sampled as MSAA.
+#define BGFX_CAPS_FORMAT_TEXTURE_MIP_AUTOGEN UINT32_C(0x00008000) //!< Texture format supports auto-generated mips.
 
 #define BGFX_RESOLVE_NONE                   UINT8_C(0x00) //!< No resolve flags.
 #define BGFX_RESOLVE_AUTO_GEN_MIPS          UINT8_C(0x01) //!< Auto-generate mip maps on resolve.

@@ -17,6 +17,7 @@
 
 #include <functional>
 #include <memory>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -48,7 +49,7 @@ class Module {
   using const_inst_iterator = InstructionList::const_iterator;
 
   // Creates an empty module with zero'd header.
-  Module() : header_({}) {}
+  Module() : header_({}), contains_debug_scope_(false) {}
 
   // Sets the header to the given |header|.
   void SetHeader(const ModuleHeader& header) { header_ = header; }
@@ -102,6 +103,10 @@ class Module {
   // This is due to decision by the SPIR Working Group, pending publication.
   inline void AddDebug3Inst(std::unique_ptr<Instruction> d);
 
+  // Appends a debug info extension (OpenCL.DebugInfo.100 or DebugInfo)
+  // instruction to this module.
+  inline void AddExtInstDebugInfo(std::unique_ptr<Instruction> d);
+
   // Appends an annotation instruction to this module.
   inline void AddAnnotationInst(std::unique_ptr<Instruction> a);
 
@@ -113,6 +118,10 @@ class Module {
 
   // Appends a function to this module.
   inline void AddFunction(std::unique_ptr<Function> f);
+
+  // Sets |contains_debug_scope_| as true.
+  inline void SetContainsDebugScope();
+  inline bool ContainsDebugScope() { return contains_debug_scope_; }
 
   // Returns a vector of pointers to type-declaration instructions in this
   // module.
@@ -182,6 +191,14 @@ class Module {
   inline IteratorRange<inst_iterator> debugs3();
   inline IteratorRange<const_inst_iterator> debugs3() const;
 
+  // Iterators for debug info instructions (excluding OpLine & OpNoLine)
+  // contained in this module.  These are OpExtInst for OpenCL.DebugInfo.100
+  // or DebugInfo extension placed between section 9 and 10.
+  inline inst_iterator ext_inst_debuginfo_begin();
+  inline inst_iterator ext_inst_debuginfo_end();
+  inline IteratorRange<inst_iterator> ext_inst_debuginfo();
+  inline IteratorRange<const_inst_iterator> ext_inst_debuginfo() const;
+
   // Iterators for entry point instructions contained in this module
   inline IteratorRange<inst_iterator> entry_points();
   inline IteratorRange<const_inst_iterator> entry_points() const;
@@ -229,6 +246,12 @@ class Module {
   // If |skip_nop| is true and this is a OpNop, do nothing.
   void ToBinary(std::vector<uint32_t>* binary, bool skip_nop) const;
 
+  // Pushes the binary segments for this instruction into the back of *|binary|
+  // including all OpLine and OpNoLine even if we can skip emitting some line
+  // instructions. If |skip_nop| is true and this is a OpNop, do nothing.
+  void ToBinaryWithAllOpLines(std::vector<uint32_t>* binary,
+                              bool skip_nop) const;
+
   // Returns 1 more than the maximum Id value mentioned in the module.
   uint32_t ComputeIdBound() const;
 
@@ -274,6 +297,7 @@ class Module {
   InstructionList debugs1_;
   InstructionList debugs2_;
   InstructionList debugs3_;
+  InstructionList ext_inst_debuginfo_;
   InstructionList annotations_;
   // Type declarations, constants, and global variable declarations.
   InstructionList types_values_;
@@ -282,6 +306,9 @@ class Module {
   // If the module ends with Op*Line instruction, they will not be attached to
   // any instruction.  We record them here, so they will not be lost.
   std::vector<Instruction> trailing_dbg_line_info_;
+
+  // This module contains DebugScope or DebugNoScope.
+  bool contains_debug_scope_;
 };
 
 // Pretty-prints |module| to |str|. Returns |str|.
@@ -323,6 +350,10 @@ inline void Module::AddDebug3Inst(std::unique_ptr<Instruction> d) {
   debugs3_.push_back(std::move(d));
 }
 
+inline void Module::AddExtInstDebugInfo(std::unique_ptr<Instruction> d) {
+  ext_inst_debuginfo_.push_back(std::move(d));
+}
+
 inline void Module::AddAnnotationInst(std::unique_ptr<Instruction> a) {
   annotations_.push_back(std::move(a));
 }
@@ -338,6 +369,8 @@ inline void Module::AddGlobalValue(std::unique_ptr<Instruction> v) {
 inline void Module::AddFunction(std::unique_ptr<Function> f) {
   functions_.emplace_back(std::move(f));
 }
+
+inline void Module::SetContainsDebugScope() { contains_debug_scope_ = true; }
 
 inline Module::inst_iterator Module::capability_begin() {
   return capabilities_.begin();
@@ -401,6 +434,22 @@ inline IteratorRange<Module::inst_iterator> Module::debugs3() {
 
 inline IteratorRange<Module::const_inst_iterator> Module::debugs3() const {
   return make_range(debugs3_.begin(), debugs3_.end());
+}
+
+inline Module::inst_iterator Module::ext_inst_debuginfo_begin() {
+  return ext_inst_debuginfo_.begin();
+}
+inline Module::inst_iterator Module::ext_inst_debuginfo_end() {
+  return ext_inst_debuginfo_.end();
+}
+
+inline IteratorRange<Module::inst_iterator> Module::ext_inst_debuginfo() {
+  return make_range(ext_inst_debuginfo_.begin(), ext_inst_debuginfo_.end());
+}
+
+inline IteratorRange<Module::const_inst_iterator> Module::ext_inst_debuginfo()
+    const {
+  return make_range(ext_inst_debuginfo_.begin(), ext_inst_debuginfo_.end());
 }
 
 inline IteratorRange<Module::inst_iterator> Module::entry_points() {
