@@ -682,12 +682,21 @@ else
 	}
 	if _OPTIONS["targetos"]=="macosx" then
 		configuration { "x64" }
+		if (_OPTIONS["PLATFORM"]=="arm64") then
+			buildoptions {
+				"-arch arm64",
+			}
+			linkoptions {
+				"-arch arm64",
+			}
+		else
 			buildoptions {
 				"-arch x86_64",
 			}
 			linkoptions {
 				"-arch x86_64",
 			}
+		end
 		configuration { "x32" }
 			buildoptions {
 				"-arch i386",
